@@ -1,3 +1,54 @@
 import pandas as pd
 import folium
 
+#read the file and make a copy
+raw_data = pd.read_csv("C:Users\\feder\\OneDrive\\Desktop\\Shoplifting 2019 Pre_Mark 43.csv")
+test_data = raw_data.copy()
+test_data.head()
+
+##drop all missing values
+#####
+
+#get day and week
+test_data.pickup_datetime = pd.to_datetime(test_data.pickup_datetime, format = '%Y-%m-%d %H:%M:%S')
+test_data['day'] = test_data.pickup_datetime.apply(lambda x: x.day)
+test_data['week'] = test_data.pickup_datetime.apply(lambda x: x.week)
+
+##drop OCCURED_ON_DATE column
+#####
+##should now have a file with columns: Year, Month, Day, Week, Hour, Lat, Long
+#####
+
+##create a base map of Boston with folium
+def generateBaseMap(default_location=[42.3601, -71.0589], default_zoom_start=11):
+    base_map = folium.Map(location=default_location, control_scale=True, zoom_start=d      efault_zoom_start)
+    return base_map
+
+base_map = generateBaseMap()
+base_map
+
+
+##create a heat map
+from folium.plugins import HeatMap
+
+
+#this df will have a 'count' column for each Lat,Long
+heatmap_df = test_data.copy()
+heatmap_df[‘count’] = 1
+heatmap_df[['Lat', 'Long', 'count']].groupby(['Lat', 'Long']).sum().sort_values('count', ascending=False).head(10)
+heatmap_df.head()
+
+
+base = generateBaseMap()
+HeatMap(data=heatmap_df[['Lat', 'Long', 'count']].groupby(['Lat', 'Long']).sum().reset_index().values.tolist(), radius=8, max_zoom=13).add_to(base)
+base
+
+##Animate the heat map
+hour_list = []
+for hour in heatmap_df.hour.sort_values().unique():
+    hour_list.append(heatmap_df.loc[heatmap_df.hour == hour, ['Lat', 'Long', 'count']].groupby(['Lat', 'Long']).sum().reset_index().values.tolist())
+
+base_map = generateBaseMap(default_zoom_start=11)
+HeatMapWithTime(hour_list, radius=5, gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'orange', 1: 'red'}, min_opacity=0.5, max_opacity=0.8, use_local_extrema=True).add_to(base_map)
+base_map
+
